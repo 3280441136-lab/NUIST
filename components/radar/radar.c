@@ -22,9 +22,11 @@ static void radar_task(void *arg)
 
     gpio_num_t gpio_num;
 
-    while (true) {
-        if (xQueueReceive(s_radar_evt_queue, &gpio_num, portMAX_DELAY) == pdTRUE) {
-            ESP_LOGI(TAG, "Radar target detected on GPIO%d", gpio_num);
+    while (1)
+    {
+        if (xQueueReceive(s_radar_evt_queue, &gpio_num, portMAX_DELAY) == pdTRUE)
+        {
+            ESP_LOGI(TAG, "Radar target detected on GPIO:%d", gpio_num);
         }
     }
 }
@@ -32,7 +34,9 @@ static void radar_task(void *arg)
 esp_err_t radar_init(void)
 {
     s_radar_evt_queue = xQueueCreate(8, sizeof(gpio_num_t));
-    if (s_radar_evt_queue == NULL) {
+
+    if (s_radar_evt_queue == NULL)
+    {
         return ESP_ERR_NO_MEM;
     }
 
@@ -45,22 +49,33 @@ esp_err_t radar_init(void)
     };
 
     esp_err_t ret = gpio_config(&io_conf);
-    if (ret != ESP_OK) {
+    if (ret != ESP_OK)
+    {
         return ret;
     }
 
     ret = gpio_install_isr_service(0);
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE)
+    {
         return ret;
     }
 
-    ret = gpio_isr_handler_add(RADAR_OUT_GPIO, radar_isr_handler, (void *)(intptr_t)RADAR_OUT_GPIO);
-    if (ret != ESP_OK) {
+    ret = gpio_isr_handler_add(RADAR_OUT_GPIO, 
+                             radar_isr_handler, 
+                             (void *)(intptr_t)RADAR_OUT_GPIO);
+    if (ret != ESP_OK)
+    {
         return ret;
     }
 
-    BaseType_t task_ret = xTaskCreate(radar_task, "radar_task", 2048, NULL, 10, NULL);
-    if (task_ret != pdPASS) {
+    BaseType_t task_ret = xTaskCreate(radar_task,
+                                     "radar_task", 
+                                     2048,
+                                     NULL, 
+                                     10,
+                                     NULL);
+    if (task_ret != pdPASS)
+    {
         return ESP_ERR_NO_MEM;
     }
 
