@@ -6,6 +6,10 @@
 #include "freertos/task.h"
 #include <stdint.h>
 
+#define RADAR_QUEUE_LENGTH 8
+#define RADAR_TASK_STACK_SIZE 2048
+#define RADAR_TASK_PRIORITY 10
+
 static const char *TAG = "radar";
 
 static QueueHandle_t s_radar_evt_queue;
@@ -33,7 +37,7 @@ static void radar_task(void *arg)
 
 esp_err_t radar_init(void)
 {
-    s_radar_evt_queue = xQueueCreate(8, sizeof(gpio_num_t));
+    s_radar_evt_queue = xQueueCreate(RADAR_QUEUE_LENGTH, sizeof(gpio_num_t));
 
     if (s_radar_evt_queue == NULL)
     {
@@ -70,9 +74,9 @@ esp_err_t radar_init(void)
 
     BaseType_t task_ret = xTaskCreate(radar_task,
                                      "radar_task", 
-                                     2048,
+                                     RADAR_TASK_STACK_SIZE,
                                      NULL, 
-                                     10,
+                                     RADAR_TASK_PRIORITY,
                                      NULL);
     if (task_ret != pdPASS)
     {
