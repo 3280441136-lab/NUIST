@@ -5,6 +5,6 @@
 
 void app_main(void)
 {
-    ESP_ERROR_CHECK(radar_init());
+    ESP_ERROR_CHECK(radar_init());//雷达初始化
     ESP_LOGI("main", "Radar GPIO is GPIO:%d", RADAR_OUT_GPIO);
 }
