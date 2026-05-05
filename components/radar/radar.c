@@ -20,7 +20,7 @@ static void radar_isr_handler(void *arg)
     xQueueSendFromISR(s_radar_evt_queue, &gpio_num, NULL);
 }
 
-static void radar_task(void *arg)
+static void radar_task(void *arg)   
 {
     (void)arg;
 
