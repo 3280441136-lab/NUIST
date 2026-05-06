@@ -10,15 +10,27 @@
 #define RADAR_TASK_STACK_SIZE 2048  //雷达任务栈
 #define RADAR_TASK_PRIORITY 10  //雷达任务优先级
 
+typedef struct
+{
+    radar_direction_t direction;
+    gpio_num_t gpio_num;
+} radar_evt_t;
+
 static const char *TAG = "radar";   //雷达打印前缀名
 
 static QueueHandle_t s_radar_evt_queue; //雷达GPIO信号队列
+static radar_event_cb_t s_event_cb;
+static void *s_event_user_ctx;
 
 //雷达中断服务函数
 static void radar_isr_handler(void *arg)
 {
-    const gpio_num_t gpio_num = (gpio_num_t)(intptr_t)arg;
-    xQueueSendFromISR(s_radar_evt_queue, &gpio_num, NULL);
+    const radar_evt_t evt = {
+        .direction = RADAR_DIRECTION_NORTH,
+        .gpio_num = (gpio_num_t)(intptr_t)arg,
+    };
+
+    xQueueSendFromISR(s_radar_evt_queue, &evt, NULL);
 }
 
 //雷达任务
@@ -26,22 +38,32 @@ static void radar_task(void *arg)
 {
     (void)arg;
 
-    gpio_num_t gpio_num;
+    radar_evt_t evt;
 
     while (1)
     {
-        if (xQueueReceive(s_radar_evt_queue, &gpio_num, portMAX_DELAY) == pdTRUE)
+        if (xQueueReceive(s_radar_evt_queue, &evt, portMAX_DELAY) == pdTRUE)
         {
-            ESP_LOGI(TAG, "Radar target detected on GPIO:%d", gpio_num);
+            ESP_LOGI(TAG, "Radar target detected direction:%s GPIO:%d",
+                     radar_direction_to_name(evt.direction),
+                     evt.gpio_num);
+
+            if (s_event_cb != NULL)
+            {
+                s_event_cb(evt.direction, s_event_user_ctx);
+            }
         }
     }
 }
 
 //雷达初始化
-esp_err_t radar_init(void)
+esp_err_t radar_init(radar_event_cb_t event_cb, void *user_ctx)
 {
+    s_event_cb = event_cb;
+    s_event_user_ctx = user_ctx;
+
     //创建雷达GPIO信号队列
-    s_radar_evt_queue = xQueueCreate(RADAR_QUEUE_LENGTH, sizeof(gpio_num_t));
+    s_radar_evt_queue = xQueueCreate(RADAR_QUEUE_LENGTH, sizeof(radar_evt_t));
 
     if (s_radar_evt_queue == NULL)
     {
@@ -92,4 +114,46 @@ esp_err_t radar_init(void)
     }
 
     return ESP_OK;
+}
+
+esp_err_t radar_simulate_trigger(radar_direction_t direction)
+{
+    if (direction >= RADAR_DIRECTION_COUNT)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (s_radar_evt_queue == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    const radar_evt_t evt = {
+        .direction = direction,
+        .gpio_num = RADAR_OUT_GPIO,
+    };
+
+    if (xQueueSend(s_radar_evt_queue, &evt, 0) != pdTRUE)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    return ESP_OK;
+}
+
+const char *radar_direction_to_name(radar_direction_t direction)
+{
+    switch (direction)
+    {
+    case RADAR_DIRECTION_NORTH:
+        return "north";
+    case RADAR_DIRECTION_EAST:
+        return "east";
+    case RADAR_DIRECTION_SOUTH:
+        return "south";
+    case RADAR_DIRECTION_WEST:
+        return "west";
+    default:
+        return "unknown";
+    }
 }
